@@ -19,6 +19,7 @@ require 'google/apis/drive_v3'
 require 'google/apis/calendar_v3'
 require 'google-id-token'
 require 'dotenv'
+require 'pry'
 
 LOGIN_URL = '/'
 
@@ -53,6 +54,14 @@ helpers do
   def resize(url, width)
     url.sub(/s220/, sprintf('s%d', width))
   end
+
+  def drive_client
+    drive = Google::Apis::DriveV3::DriveService.new
+    drive.authorization = credentials_for(Google::Apis::DriveV3::AUTH_DRIVE)
+    drive
+  end
+
+
 end
 
 # Home page
@@ -81,13 +90,35 @@ post('/signin') do
 end
 
 # Retrieve the 10 most recently modified files in Google Drive
-get('/drive') do
-  drive = Google::Apis::DriveV3::DriveService.new
-  drive.authorization = credentials_for(Google::Apis::DriveV3::AUTH_DRIVE)
-  @result = drive.list_files(page_size: 10,
+get('/drive/list_files') do
+  @result = drive_client.list_files(page_size: 10,
                              fields: 'files(name,modified_time,web_view_link),next_page_token')
-  erb :drive
+  erb :drive_list
 end
+
+get('/drive/create_folder') do
+  file_id = "1vOp2sJ5JruF8DlKJpM7ZtQGhMH-x8rpg"
+  file_metadata = {
+    name: 'training_request',
+    mime_type: 'application/vnd.google-apps.folder',
+    parents: [file_id]
+  }
+  @folder = drive_client.create_file(file_metadata, fields: 'id')
+  erb :drive_folder
+end
+
+get('/drive/search_page') do
+  erb :search_page
+end
+
+post('/drive/search_results') do
+
+  @results = drive_client.list_files(q: "name = '#{params[:folder_name]}' and mimeType = 'application/vnd.google-apps.folder'")
+  binding.pry
+  erb :search_results
+end
+
+
 
 # Retrieve the next 10 upcoming events from Google Calendar
 get('/calendar') do
